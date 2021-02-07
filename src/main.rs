@@ -1,69 +1,24 @@
-use async_trait::async_trait;
-use futures::StreamExt;
-use shiplift::{Container, ContainerOptions, Docker};
-use xtra::prelude::*;
-use xtra::spawn::Tokio;
+mod graphql;
+mod model;
 
-struct Cont {
-    docker: Docker,
-}
+use graphql::{schema, Schema};
+use std::convert::Infallible;
+use warp::Filter;
 
-impl Cont {
-    fn new(docker: Docker) -> Self {
-        Self { docker }
-    }
-}
-
-impl Actor for Cont {}
-
-struct Run(String);
-impl Message for Run {
-    type Result = String;
-}
-
-#[async_trait]
-impl Handler<Run> for Cont {
-    async fn handle(&mut self, run: Run, _ctx: &mut Context<Self>) -> String {
-        let result = self
-            .docker
-            .containers()
-            .create(&ContainerOptions::builder(run.0.as_ref()).build())
-            .await
-            .unwrap();
-
-        let container = Container::new(&self.docker, result.id.clone());
-        container.start().await.unwrap();
-
-        result.id
-    }
-}
-
-struct Log(String);
-impl Message for Log {
-    type Result = ();
-}
-
-#[async_trait]
-impl Handler<Log> for Cont {
-    async fn handle(&mut self, log: Log, _ctx: &mut Context<Self>) {
-        let containers = self.docker.containers();
-        let container = containers.get(log.0);
-        dbg!("got container");
-        while let Some(result) = container.stats().next().await {
-            match result {
-                Ok(stat) => println!("{:?}", stat),
-                Err(e) => eprintln!("Error: {}", e),
-            }
-        }
-    }
-}
+use model::{Initialize, RUNTIME};
 
 #[tokio::main]
 async fn main() {
-    let docker = Docker::new();
+    RUNTIME.send(Initialize).await.unwrap();
 
-    let addr = Cont::new(docker).create(None).spawn(&mut Tokio::Global);
-    let id = addr.send(Run("redis".to_string())).await.unwrap();
-    addr.send(Log(id)).await.unwrap();
-    loop {}
+    let filter = async_graphql_warp::graphql(schema()).and_then(
+        |(schema, request): (Schema, async_graphql::Request)| async move {
+            // Execute query
+            let resp = schema.execute(request).await;
+
+            // Return result
+            Ok::<_, Infallible>(async_graphql_warp::Response::from(resp))
+        },
+    );
+    warp::serve(filter).run(([0, 0, 0, 0], 8000)).await;
 }
