@@ -1,5 +1,5 @@
 // containers
-use crate::model::{GetContainers, RunContainer, RUNTIME};
+use crate::model::{GetContainers, RemoveContainer, RunContainer, RUNTIME};
 use async_graphql::{Schema as GqlSchema, *};
 
 pub type Schema = GqlSchema<Query, Mutation, EmptySubscription>;
@@ -51,5 +51,10 @@ impl Mutation {
             .await
             .unwrap();
         container
+    }
+
+    async fn remove_container(&self, id: String) -> bool {
+        RUNTIME.send(RemoveContainer { id }).await.unwrap();
+        true
     }
 }

@@ -39,11 +39,9 @@ pub struct RunContainer {
     pub expose_src: u32,
     pub expose_host: u32,
 }
-
 impl Message for RunContainer {
     type Result = Container;
 }
-
 #[async_trait]
 impl Handler<RunContainer> for Model {
     async fn handle(&mut self, input: RunContainer, _ctx: &mut Context<Self>) -> Container {
@@ -108,5 +106,24 @@ impl Handler<Initialize> for Model {
             let c = Container::new(item.id.clone(), name, item.image);
             self.containers.insert(item.id.clone(), c.clone());
         }
+    }
+}
+
+// Remove container
+pub struct RemoveContainer {
+    pub id: String,
+}
+impl Message for RemoveContainer {
+    type Result = ();
+}
+
+#[async_trait]
+impl Handler<RemoveContainer> for Model {
+    async fn handle(&mut self, input: RemoveContainer, _ctx: &mut Context<Self>) {
+        let id = input.id;
+        let c = SLContainer::new(&self.docker, id.clone());
+        c.stop(None).await.unwrap();
+        c.wait().await.unwrap();
+        c.delete().await.unwrap();
     }
 }
