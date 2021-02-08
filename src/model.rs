@@ -113,6 +113,7 @@ impl Handler<Initialize> for Model {
 pub struct RemoveContainer {
     pub id: String,
 }
+
 impl Message for RemoveContainer {
     type Result = ();
 }
