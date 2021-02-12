@@ -25,3 +25,8 @@ custom_derive = "0.1.7"
 newtype_derive = "0.1.6"
 anyhow = "1.0.38"
 uuid = { version = "0.8.2", features = ["v4"]}
+clap = "2.33.3"
+quicli = "0.4.0"
+structopt = "0.3.21"
+tui = "0.14.0"
+termion = "1.5.6"
